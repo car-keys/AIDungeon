@@ -15,37 +15,14 @@ with open("story/censored_words.txt", "r") as f:
 pf = ProfanityFilter(custom_censor_list=censored_words)
 
 
-def console_print(text, width=75):
-    last_newline = 0
-    i = 0
-    while i < len(text):
-        if text[i] == "\n":
-            last_newline = 0
-        elif last_newline > width and text[i] == " ":
-            text = text[:i] + "\n" + text[i:]
-            last_newline = 0
-        else:
-            last_newline += 1
-        i += 1
-    print(text)
+
 
 
 def get_similarity(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 
-def get_num_options(num):
 
-    while True:
-        choice = input("Enter the number of your choice: ")
-        try:
-            result = int(choice)
-            if result >= 0 and result < num:
-                return result
-            else:
-                print("Error invalid choice. ")
-        except ValueError:
-            print("Error invalid choice. ")
 
 
 def player_died(text):

@@ -2,6 +2,8 @@
 import os
 import sys
 import time
+import asyncio
+import discord_module as dm
 
 from generator.gpt2.gpt2_generator import *
 from story import grammars
@@ -9,11 +11,39 @@ from story.story_manager import *
 from story.utils import *
 from playsound import playsound
 
+
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+def console_print(text, width=75):
+    last_newline = 0
+    i = 0
+    while i < len(text):
+        if text[i] == "\n":
+            last_newline = 0
+        elif last_newline > width and text[i] == " ":
+            text = text[:i] + "\n" + text[i:]
+            last_newline = 0
+        else:
+            last_newline += 1
+        i += 1
+    dm.add_to_output(text)
+    await dm.send_output()
+
+def get_num_options(num):
+    while True:
+        choice = input("Enter the number of your choice.")
+        try:
+            result = int(choice)
+            if result >= 0 and result < num:
+                return result
+            else:
+                await dm.send_msg("Error invalid choice. ")
+        except ValueError:
+            await dm.send_msg("Error invalid choice. ")
 
 def splash():
-    print("0) New Game\n1) Load Game\n")
+    dm.add_to_output("0) New Game\n1) Load Game\n")
+    await dm.send_output()
     choice = get_num_options(2)
 
     if choice == 1:
@@ -26,50 +56,47 @@ def select_game():
     with open(YAML_FILE, "r") as stream:
         data = yaml.safe_load(stream)
 
-    print("Pick a setting.")
+    dm.add_to_output("Pick a setting.")
     settings = data["settings"].keys()
     for i, setting in enumerate(settings):
         print_str = str(i) + ") " + setting
         if setting == "fantasy":
             print_str += " (recommended)"
 
-        console_print(print_str)
-    console_print(str(len(settings)) + ") custom")
+        await dm.send_msg(print_str)
+    dm.add_to_output(str(len(settings)) + ") custom")
     choice = get_num_options(len(settings) + 1)
 
     if choice == len(settings):
 
         context = ""
-        console_print(
-            "\n(optional, can be left blank) Enter a prompt that describes who you are and what are your goals. The AI will "
-            "always remember this prompt and will use it for context, ex:\n 'Your name is John Doe. You are a knight in "
-            "the kingdom of Larion. You were sent by the king to track down and slay an evil dragon.'\n"
+        await dm.send_msg(
+            "\nEnter a prompt that describes who you are and what are your goals.\nThe AI will " +
+            "always remember this prompt and will use it for context.\nEX: 'Your name is John Doe. You are a knight in " +
+            "the kingdom of Larion. You were sent by the king to track down and slay an evil dragon.'"
         )
-        context = input("Story Context: ")
+        context = await get_input()
         if len(context) > 0 and not context.endswith(" "):
             context = context + " "
 
-        console_print(
-            "\nNow enter a prompt that describes the start of your story. This comes after the Story Context and will give the AI "
-            "a starting point for the story. Unlike the context, the AI will eventually forget this prompt, ex:\n 'After arriving "
-            "at the forest, it turns out the evil dragon is actually a pretty cute monster girl. You decide you're going to lay "
-            "this dragon instead.'"
-            "\nEnter a prompt that describes who you are and the first couple sentences of where you start "
-            "out ex:\n 'You are a knight in the kingdom of Larion. You are hunting the evil dragon who has been "
-            + "terrorizing the kingdom. You enter the forest searching for the dragon and see' "
+        await dm.send_msg(
+            "\nNow enter a prompt that describes the start of your story. This will give the AI " +
+            "a starting point (The AI will eventually forget this prompt).\nEX: '" +
+            "You are hunting the evil dragon who has been " + 
+            "terrorizing the kingdom. You enter the forest searching for the dragon and see' "
         )
-        prompt = input("Starting Prompt: ")
+        prompt = await get_input("Starting Prompt:")
         return context, prompt
 
     setting_key = list(settings)[choice]
 
-    print("\nPick a character")
+    dm.add_to_output("\nPick a character")
     characters = data["settings"][setting_key]["characters"]
     for i, character in enumerate(characters):
-        console_print(str(i) + ") " + character)
+        dm.add_to_output(str(i) + ") " + character)
     character_key = list(characters)[get_num_options(len(characters))]
 
-    name = input("\nWhat is your name? ")
+    name = await get_input("What is your name?")
     setting_description = data["settings"][setting_key]["description"]
     character = data["settings"][setting_key]["characters"][character_key]
 
@@ -133,78 +160,75 @@ def instructions():
     return text
 
 
-def play_aidungeon_2():
+async def play_aidungeon_2():
 
-    console_print(
-        "AI Dungeon 2 will save and use your actions and game to continually improve AI Dungeon."
-        + " If you would like to disable this enter '/nosaving' as an action. This will also turn off the "
-        + "ability to save games."
-    )
+    #console_print(
+    #    "AI Dungeon 2 will save and use your actions and game to continually improve AI Dungeon."
+    #    + " If you would like to disable this enter '/nosaving' as an action. This will also turn off the "
+    #    + "ability to save games."
+    #)
 
     upload_story = True
     ping = False
 
-    print("\nInitializing AI Dungeon! (This might take a few minutes)\n")
+    dm.add_to_output("\nInitializing AI Dungeon! (This might take a few minutes)\n")
+    await dm.send_output()
     generator = GPT2Generator()
     story_manager = UnconstrainedStoryManager(generator)
-    print("\n")
 
     with open("opening.txt", "r", encoding="utf-8") as file:
         starter = file.read()
-    print(starter)
-
+    dm.add_to_output(starter)
     while True:
         if story_manager.story != None:
             del story_manager.story
 
         while story_manager.story is None: 
-            print("\n\n")
             splash_choice = splash()
 
             if splash_choice == "new":
-                print("\n\n")
                 context, prompt = select_game()
-                change_config = input("Would you like to enter a new temp and top_k now? (default: 0.4, 80) (y/N) ")
+                change_config = await get_input("Would you like to enter a new temp and top_k now? (default: 0.4, 80) (y/N)")
                 if change_config.lower() == "y":
-                    story_manager.generator.change_temp(float(input("Enter a new temp (default 0.4): ") or 0.4))
-                    story_manager.generator.change_topk(int(input("Enter a new top_k (default 80): ") or 80))
-                    console_print("Please wait while the AI model is regenerated...")
+                    story_manager.generator.change_temp(float(await get_input("Enter a new temp (default 0.4)") or 0.4))
+                    story_manager.generator.change_topk(int(await get_input("Enter a new top_k (default 80)") or 80))
+                    dm.add_to_output("Please wait while the AI model is regenerated...")
+                    await dm.send_output()
                     story_manager.generator.gen_output()
-                console_print(instructions())
-                print("\nGenerating story...")
+                await dm.send_msg(instructions() + "\n\nGenerating story...")
                 story_manager.generator.generate_num = 120
                 story_manager.start_new_story(
                     prompt, context=context, upload_story=upload_story
                 )
-                print("\n")
-                console_print(str(story_manager.story))
+                await dm.send_msg(str(story_manager.story))
                 story_manager.generator.generate_num = story_manager.generator.default_gen_num
 
             else:
-                load_ID = input("What is the ID of the saved game? (prefix with gs:// if it is a cloud save) ")
+                load_ID = await get_input("What is the ID of the saved game? (prefix with gs:// if it is a cloud save)")
                 if load_ID.startswith("gs://"):
                     result = story_manager.load_new_story(load_ID[5:], True)
                     story_manager.story.cloud = True
                 else:
                     result = story_manager.load_new_story(load_ID)
-                print("\nLoading Game...\n")
-                print(result)
+                dm.add_to_output("\nLoading Game...\n")
+                dm.add_to_output(result)
+                await dm.send_output()
 
         while True:
             sys.stdin.flush()
-            action = input("> ").strip()
+            action = await get_input().strip()
             if len(action) > 0 and action[0] == "/":
                 split = action[1:].split(" ") # removes preceding slash
                 command = split[0].lower()
                 args = split[1:]
                 if command == "restart":
-                    rating = input("Please rate the story quality from 1-10: ")
+                    rating = await get_input("Please rate the story quality from 1-10: ")
                     rating_float = float(rating)
                     story_manager.story.rating = rating_float
                     break
 
                 elif command == "quit":
-                    rating = input("Please rate the story quality from 1-10: ")
+                    rating = await get_input("Please rate the story quality from 1-10: ")
                     rating_float = float(rating)
                     story_manager.story.rating = rating_float
                     exit()
@@ -212,14 +236,14 @@ def play_aidungeon_2():
                 elif command == "nosaving":
                     upload_story = False
                     story_manager.story.upload_story = False
-                    console_print("Saving turned off.")
+                    await dm.send_msg("Saving turned off.")
 
                 elif command == "cloud":
                     story_manager.story.cloud = True
-                    console_print("Cloud saving turned on.")
+                    await dm.send_msg("Cloud saving turned on.")
 
                 elif command == "help":
-                    console_print(instructions())
+                    await dm.send_msg(instructions())
 
                 elif command == "showstats":
                     text =    "nosaving is set to:    " + str(not upload_story) 
@@ -227,45 +251,45 @@ def play_aidungeon_2():
                     text += "\ncensor is set to:      " + str(generator.censor) 
                     text += "\ntemperature is set to: " + str(story_manager.generator.temp) 
                     text += "\ntop_k is set to:       " + str(story_manager.generator.top_k) 
-                    print(text) 
+                    await dm.send_msg(text) 
 
                 elif command == "censor":
                     if args[0] == "off":
                         if not generator.censor:
-                            console_print("Censor is already disabled.")
+                            await dm.send_msg("Censor is already disabled.")
                         else:
                             generator.censor = False
-                            console_print("Censor is now disabled.")
+                            await dm.send_msg("Censor is now disabled.")
 
                     elif args[0] == "on":
                         if generator.censor:
-                            console_print("Censor is already enabled.")
+                            await dm.send_msg("Censor is already enabled.")
                         else:
                             generator.censor = True
-                            console_print("Censor is now enabled.")
+                            await dm.send_msg("Censor is now enabled.")
                     else:
-                        console_print(f"Invalid argument: {args[0]}")
+                        await dm.send_msg(f"Invalid argument: {args[0]}")
                                
                 elif command == "ping":
                     if args[0] == "off":
                         if not ping:
-                            console_print("Ping is already disabled.")
+                            await dm.send_msg("Ping is already disabled.")
                         else:
                             ping = False
-                            console_print("Ping is now disabled.")
+                            await dm.send_msg("Ping is now disabled.")
 
                     elif args[0] == "on":
                         if ping:
-                            console_print("Ping is already enabled.")
+                            await dm.send_msg("Ping is already enabled.")
                         else:
                             ping = True
-                            console_print("Ping is now enabled.")
+                            await dm.send_msg("Ping is now enabled.")
                     else:
-                        console_print(f"Invalid argument: {args[0]}")
+                        await dm.send_msg(f"Invalid argument: {args[0]}")
 
                 elif command == "load":
                     if len(args) == 0:
-                        load_ID = input("What is the ID of the saved game? (prefix with gs:// if it is a cloud save) ")
+                        load_ID = await get_input("What is the ID of the saved game? (prefix with gs:// if it is a cloud save) ")
                     else:
                         load_ID = args[0]
                     if load_ID.startswith("gs://"):
@@ -273,100 +297,97 @@ def play_aidungeon_2():
                         result = story_manager.story.load_from_storage(load_ID[5:])
                     else:
                         result = story_manager.story.load_from_storage(load_ID)
-                    console_print("\nLoading Game...\n")
-                    console_print(result)
+                    await dm.send_msg("\nLoading Game...\n\n" + result)
 
                 elif command == "save":
                     if upload_story:
                         id = story_manager.story.save_to_storage()
-                        console_print("Game saved.")
-                        console_print(f"To load the game, type 'load' and enter the following ID: {id}")
+                        await dm.send_msg(f"Game saved.\nTo load the game, type 'load' and enter the following ID: {id}")
                     else:
-                        console_print("Saving has been turned off. Cannot save.")
+                        await dm.send_msg("Saving has been turned off. Cannot save.")
 
                 elif command == "load":
                     if len(args) == 0:
-                        load_ID = input("What is the ID of the saved game?")
+                        load_ID = await get_input("What is the ID of the saved game?")
                     else:
                         load_ID = args[0]
                     result = story_manager.story.load_from_storage(load_ID)
-                    console_print("\nLoading Game...\n")
-                    console_print(result)
+                    await dm.send_msg("\nLoading Game...\n" + result)
 
                 elif command == "print":
-                    line_break = input("Format output with extra newline? (y/n)\n> ") 
-                    print("\nPRINTING\n") 
+                    line_break = await get_input("Format output with extra newline? (y/n)\n> ") 
                     if line_break == "y": 
-                        console_print(str(story_manager.story)) 
+                        await dm.send_msg(str(story_manager.story)) 
                     else: 
-                        print(str(story_manager.story)) 
+                        await dm.send_msg(str(story_manager.story)) 
 
                 elif command == "revert":
                     if len(story_manager.story.actions) is 0:
-                        console_print("You can't go back any farther. ")
+                        await dm.send_msg("You can't go back any farther. ")
                         continue
 
                     story_manager.story.actions = story_manager.story.actions[:-1]
                     story_manager.story.results = story_manager.story.results[:-1]
-                    console_print("Last action reverted. ")
+                    dm.add_to_output("Last action reverted. ")
                     if len(story_manager.story.results) > 0:
-                        console_print(story_manager.story.results[-1])
+                        dm.add_to_output(story_manager.story.results[-1])
                     else:
-                        console_print(story_manager.story.story_start)
+                        dm.add_to_output(story_manager.story.story_start)
+                    await dm.send_output()
                     continue
                 
                 elif command == "infto":
 
                     if len(args) != 1:
-                        console_print("Failed to set timeout. Example usage: infto 30")
+                        await dm.send_msg("Failed to set timeout. Example usage: infto 30")
                     else:
                         try:
                             story_manager.inference_timeout = int(args[0])
-                            console_print("Set timeout to {}".format(story_manager.inference_timeout))
+                            await dm.send_msg("Set timeout to {}".format(story_manager.inference_timeout))
                         except:
-                            console_print("Failed to set timeout. Example usage: infto 30")
+                            await dm.send_msg("Failed to set timeout. Example usage: infto 30")
                             continue
                     
                 elif command == "temp":
                 
                     if len(args) != 1:
-                        console_print("Failed to set temperature. Example usage: temp 0.4")
+                        await dm.send_msg("Failed to set temperature. Example usage: temp 0.4")
                     else:
                         try:
-                            console_print("Regenerating model, please wait...")
+                            await dm.send_msg("Regenerating model, please wait...")
                             story_manager.generator.change_temp(float(args[0]))
                             story_manager.generator.gen_output()
-                            console_print("Set temp to {}".format(story_manager.generator.temp))
+                            await dm.send_msg("Set temp to {}".format(story_manager.generator.temp))
                         except:
-                            console_print("Failed to set temperature. Example usage: temp 0.4")
+                            await dm.send_msg("Failed to set temperature. Example usage: temp 0.4")
                             continue
                 
                 elif command == "topk":
                 
                     if len(args) != 1:
-                        console_print("Failed to set top_k. Example usage: topk 80")
+                        await dm.send_msg("Failed to set top_k. Example usage: topk 80")
                     else:
                         try:
-                            console_print("Regenerating model, please wait...")
+                            await dm.send_msg("Regenerating model, please wait...")
                             story_manager.generator.change_topk(int(args[0]))
                             story_manager.generator.gen_output()
-                            console_print("Set top_k to {}".format(story_manager.generator.top_k))
+                            await dm.send_msg("Set top_k to {}".format(story_manager.generator.top_k))
                         except:
-                            console_print("Failed to set top_k. Example usage: topk 80")
+                            await dm.send_msg("Failed to set top_k. Example usage: topk 80")
                             continue
                 
                 elif command == 'remember':
 
                     try:
                         story_manager.story.context += "You know " + " ".join(args[0:]) + ". "
-                        console_print("You make sure to remember {}.".format(" ".join(action.split(" ")[1:])))
+                        await dm.send_msg("You make sure to remember {}.".format(" ".join(action.split(" ")[1:])))
                     except:
-                        console_print("Failed to add to memory. Example usage: remember that Sir Theo is a knight")
+                        await dm.send_msg("Failed to add to memory. Example usage: remember that Sir Theo is a knight")
                     
                 elif command == 'retry':
 
                     if len(story_manager.story.actions) is 0:
-                        console_print("There is nothing to retry.")
+                        await dm.send_msg("There is nothing to retry.")
                         continue
 
                     last_action = story_manager.story.actions.pop()
@@ -375,10 +396,9 @@ def play_aidungeon_2():
                     try:
                         try:
                             story_manager.act_with_timeout(last_action)
-                            console_print(last_action)
-                            console_print(story_manager.story.results[-1])
+                            await dm.send_msg(last_action + '\n' + story_manager.story.results[-1])
                         except FunctionTimedOut:
-                            console_print("That input caused the model to hang (timeout is {}, use infto ## command to change)".format(story_manager.inference_timeout))
+                            await dm.send_msg("That input caused the model to hang (timeout is {}, use infto ## command to change)".format(story_manager.inference_timeout))
                     except NameError:
                         pass
                     if ping:
@@ -386,7 +406,7 @@ def play_aidungeon_2():
 
                     continue
                 else:
-                    console_print(f"Unknown command: {command}")
+                    await dm.send_msg(f"Unknown command: {command}")
 
             else:
                 if action == "":
@@ -415,7 +435,7 @@ def play_aidungeon_2():
                 try:
                     result = "\n" + story_manager.act_with_timeout(action)
                 except FunctionTimedOut:
-                    console_print("That input caused the model to hang (timeout is {}, use infto ## command to change)".format(story_manager.inference_timeout))
+                    await dm.send_msg(f"That input caused the model to hang (timeout is {story_manager.inference_timeout}, use infto ## command to change)")
                     if ping:
                         playsound('ping.mp3')
                     continue
@@ -426,7 +446,7 @@ def play_aidungeon_2():
                     if similarity > 0.9:
                         story_manager.story.actions = story_manager.story.actions[:-1]
                         story_manager.story.results = story_manager.story.results[:-1]
-                        console_print(
+                        await dm.send_msg(
                             "Woops that action caused the model to start looping. Try a different action to prevent that."
                         )
                         if ping:
@@ -434,30 +454,31 @@ def play_aidungeon_2():
                         continue
 
                 if player_won(result):
-                    console_print(result + "\n CONGRATS YOU WIN")
+                    await dm.send_msg(result + "\n CONGRATS YOU WIN")
                     break
                 elif player_died(result):
-                    console_print(result)
-                    console_print("YOU DIED. GAME OVER")
-                    console_print("\nOptions:")
-                    console_print("0) Start a new game")
-                    console_print(
-                        "1) \"I'm not dead yet!\" (If you didn't actually die) "
+                    await dm.send_msg(
+                        result + 
+                        "YOU DIED. GAME OVER\n" + 
+                        "\nOptions:" + 
+                        "0) Start a new game\n" + 
+                        "1) \"I'm not dead yet!\" (If you didn't actually die)\n"+
+                        "Which do you choose?"
                     )
-                    console_print("Which do you choose? ")
                     choice = get_num_options(2)
                     if choice == 0:
                         break
                     else:
-                        console_print("Sorry about that...where were we?")
-                        console_print(result)
+                        await dm.send_msg("Sorry about that...where were we?\n\n"+result)
 
                 else:
-                    console_print(result)
+                    await dm.send_msg(result)
                 if ping:
                     playsound('ping.mp3')
                 story_manager.generator.generate_num = story_manager.generator.default_gen_num
 
 
 if __name__ == "__main__":
-    play_aidungeon_2()
+    # play_aidungeon_2()
+    # We need to run play_aidungeon_2() only after starting up, so in "on_ready"
+    dm.start()
