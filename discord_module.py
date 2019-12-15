@@ -3,9 +3,8 @@ import play
 client = discord.Client()
 
 KEY_PATH = 'key.txt'
-SERVER_ID = None
 CHANNEL_ID = None
-SELF_ID = None# stored so the bot doesn't read its own messages
+SELF_ID = 376874563847454740# stored so the bot doesn't read its own messages
 GAME_CHANNEL = None
 INPUT_GIVEN = False
 INPUT_TEXT = ''
