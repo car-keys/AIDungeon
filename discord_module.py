@@ -1,5 +1,6 @@
 import discord
 import play
+import asyncio
 client = discord.Client()
 
 KEY_PATH = 'key.txt'

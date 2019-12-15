@@ -2,7 +2,6 @@
 import os
 import sys
 import time
-import asyncio
 import discord_module as dm
 
 from generator.gpt2.gpt2_generator import *
@@ -13,21 +12,6 @@ from playsound import playsound
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-def console_print(text, width=75):
-    last_newline = 0
-    i = 0
-    while i < len(text):
-        if text[i] == "\n":
-            last_newline = 0
-        elif last_newline > width and text[i] == " ":
-            text = text[:i] + "\n" + text[i:]
-            last_newline = 0
-        else:
-            last_newline += 1
-        i += 1
-    dm.add_to_output(text)
-    await dm.send_output()
 
 def get_num_options(num):
     while True:
