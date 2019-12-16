@@ -38,7 +38,7 @@ async def on_message(message: discord.Message):
     global INPUT_TEXT
     if message.author.id == SELF_ID:
         return
-    if message.channel != GAME_CHANNEL
+    if message.channel != GAME_CHANNEL:
         return
     # If no input is being processed, write the current input. Later,
     # The bot can read from INPUT_TEXT to replicate input() statements
