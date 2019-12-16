@@ -13,7 +13,7 @@ from playsound import playsound
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-def get_num_options(num):
+async def get_num_options(num):
     while True:
         choice = input("Enter the number of your choice.")
         try:
@@ -21,14 +21,14 @@ def get_num_options(num):
             if result >= 0 and result < num:
                 return result
             else:
-                await dm.send_msg("Error invalid choice. ")
+                await dm.send_msg("Error invalid choice.")
         except ValueError:
             await dm.send_msg("Error invalid choice. ")
 
 def splash():
     dm.add_to_output("0) New Game\n1) Load Game\n")
     await dm.send_output()
-    choice = get_num_options(2)
+    choice = await get_num_options(2)
 
     if choice == 1:
         return "load"
@@ -49,7 +49,7 @@ def select_game():
 
         await dm.send_msg(print_str)
     dm.add_to_output(str(len(settings)) + ") custom")
-    choice = get_num_options(len(settings) + 1)
+    choice = await get_num_options(len(settings) + 1)
 
     if choice == len(settings):
 
@@ -78,7 +78,7 @@ def select_game():
     characters = data["settings"][setting_key]["characters"]
     for i, character in enumerate(characters):
         dm.add_to_output(str(i) + ") " + character)
-    character_key = list(characters)[get_num_options(len(characters))]
+    character_key = list(characters)[await get_num_options(len(characters))]
 
     name = await get_input("What is your name?")
     setting_description = data["settings"][setting_key]["description"]
@@ -449,7 +449,7 @@ async def play_aidungeon_2():
                         "1) \"I'm not dead yet!\" (If you didn't actually die)\n"+
                         "Which do you choose?"
                     )
-                    choice = get_num_options(2)
+                    choice = await get_num_options(2)
                     if choice == 0:
                         break
                     else:
