@@ -5,8 +5,8 @@ client = discord.Client()
 
 KEY_PATH = 'key.txt'
 CHANNEL_ID = None
-SELF_ID = 376874563847454740# stored so the bot doesn't read its own messages
-GAME_CHANNEL = None
+SELF_ID = 376874563847454740 # stored so the bot doesn't read its own messages
+GAME_CHANNEL = 656007036315631627
 INPUT_GIVEN = False
 INPUT_TEXT = ''
 output_buffer = ''
@@ -66,7 +66,6 @@ async def get_input(prompt=None):
             asyncio.sleep(5)
             
 async def start():
-    if __name__ == '__main__':
     with open(KEY_PATH, 'r') as f:
         key = f.read()
     client.run(key)
