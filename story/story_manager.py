@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 import uuid
-from .. import discord_module as dm
 from subprocess import Popen
 
 from story.utils import *
@@ -38,7 +37,6 @@ class Story:
     def __del__(self):
         if self.upload_story:
             self.save_to_storage()
-            await dm.send_msg("Game saved.\nTo load the game, type 'load' and enter the following ID: " + self.uuid)
 
     def init_from_dict(self, story_dict):
         self.story_start = story_dict["story_start"]
@@ -271,11 +269,9 @@ class ConstrainedStoryManager(StoryManager):
         try:
             action_choice = int(action_choice_str)
         except:
-            await dm.send_msg("Error invalid choice.")
             return None, None
 
         if action_choice < 0 or action_choice >= len(self.action_phrases):
-            await dm.send_msg("Error invalid choice.")
             return None, None
 
         self.story.choices.append(action_choice)
@@ -303,10 +299,8 @@ class ConstrainedStoryManager(StoryManager):
         )
 
         if response is not None:
-            await dm.send_msg("Retrieved from cache")
             return json.loads(response)
         else:
-            await dm.send_msg("Didn't receive from cache")
             action_results = self.get_action_results_generate()
             response = json.dumps(action_results)
             self.cacher.cache_file(

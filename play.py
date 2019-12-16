@@ -25,7 +25,7 @@ async def get_num_options(num):
         except ValueError:
             await dm.send_msg("Error invalid choice. ")
 
-def splash():
+async def splash():
     dm.add_to_output("0) New Game\n1) Load Game\n")
     await dm.send_output()
     choice = await get_num_options(2)
@@ -36,7 +36,7 @@ def splash():
         return "new"
 
 
-def select_game():
+async def select_game():
     with open(YAML_FILE, "r") as stream:
         data = yaml.safe_load(stream)
 
@@ -168,10 +168,10 @@ async def play_aidungeon_2():
             del story_manager.story
 
         while story_manager.story is None: 
-            splash_choice = splash()
+            splash_choice = await splash()
 
             if splash_choice == "new":
-                context, prompt = select_game()
+                context, prompt = await select_game()
                 change_config = await get_input("Would you like to enter a new temp and top_k now? (default: 0.4, 80) (y/N)")
                 if change_config.lower() == "y":
                     story_manager.generator.change_temp(float(await get_input("Enter a new temp (default 0.4)") or 0.4))
